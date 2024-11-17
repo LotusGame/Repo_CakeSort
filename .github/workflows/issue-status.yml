@@ -22,7 +22,7 @@ jobs:
 
           // Lọc những issue có subtask (dựa trên việc có các issue liên kết)
           const parentIssueNumbers = parentIssues.data
-            .filter(issue => issue.body.includes('- [ ]'))  // Kiểm tra xem issue có chứa danh sách subtask hay không
+            .filter(issue => issue.body.includes('### Sub task:'))  // Kiểm tra xem issue có chứa danh sách subtask hay không
             .map(issue => issue.number);
 
           // Lấy tất cả các issues liên quan đến các parent issues trên
