@@ -1,0 +1,53 @@
+name: Auto Update Parent Issue
+
+on:
+  issues:
+    types: [closed]  # Sự kiện khi một issue được đóng
+  workflow_dispatch:  # Cho phép chạy thủ công action này
+
+jobs:
+  check-parent-issue:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Get all issues from the project
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const parentIssues = await github.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',  // Chỉ lấy các issue đang mở
+          });
+
+          // Lọc những issue có subtask (dựa trên việc có các issue liên kết)
+          const parentIssueNumbers = parentIssues.data
+            .filter(issue => issue.body.includes('### Sub task:'))  // Kiểm tra xem issue có chứa danh sách subtask hay không
+            .map(issue => issue.number);
+
+          // Lấy tất cả các issues liên quan đến các parent issues trên
+          const subtasks = await github.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'all',  // Lấy tất cả các issues, kể cả đã đóng
+          });
+
+          for (const parentNumber of parentIssueNumbers) {
+            // Tìm các subtask liên kết với issue lớn
+            const subtaskNumbers = subtasks.data
+              .filter(issue => issue.body.includes(`#${parentNumber}`))  // Kiểm tra có liên kết với issue lớn không
+              .map(issue => issue.number);
+
+            // Kiểm tra nếu tất cả các subtask đã được đóng
+            const closedSubtasks = subtasks.data.filter(issue => subtaskNumbers.includes(issue.number) && issue.state === 'closed');
+
+            if (closedSubtasks.length === subtaskNumbers.length) {
+              // Nếu tất cả các subtask đã đóng, đóng issue lớn
+              await github.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parentNumber,
+                state: 'closed',
+              });
+            }
+          }
